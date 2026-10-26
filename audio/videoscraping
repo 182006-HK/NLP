@@ -1,0 +1,82 @@
+import os
+import re
+import moviepy.editor as mp
+import whisper
+
+def highlight_user_keywords_in_captions(file_path, user_keywords):
+    """
+    file_path: Path to video or audio file
+    user_keywords: List of strings e.g. ["machine learning", "neural networks", "data"]
+    """
+    audio_path = "temp_audio.wav"
+    
+    # 1. Extract audio if video file
+    if file_path.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+        video = mp.VideoFileClip(file_path)
+        video.audio.write_audiofile(audio_path, logger=None)
+    else:
+        audio_path = file_path
+
+    # 2. Transcribe using Whisper
+    print("Transcribing video/audio...")
+    model = whisper.load_model("base")
+    result = model.transcribe(audio_path, verbose=False)
+
+    # Clean up temp file
+    if os.path.exists("temp_audio.wav") and file_path != "temp_audio.wav":
+        os.remove("temp_audio.wav")
+
+    # Clean and normalize user keywords
+    target_keywords = [kw.strip().lower() for kw in user_keywords if kw.strip()]
+
+    # Helper function for SRT timestamp format
+    def format_timestamp(seconds):
+        hrs = int(seconds // 3600)
+        mins = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+        millis = int((seconds - int(seconds)) * 1000)
+        return f"{hrs:02d}:{mins:02d}:{secs:02d},{millis:03d}"
+
+    # 3. Process segments and highlight user-selected keywords
+    highlighted_captions = []
+    found_keyword_counts = {kw: 0 for kw in target_keywords}
+
+    for i, segment in enumerate(result["segments"], start=1):
+        start_time = format_timestamp(segment["start"])
+        end_time = format_timestamp(segment["end"])
+        text = segment["text"].strip()
+        
+        formatted_text = text
+        for kw in target_keywords:
+            pattern = re.compile(re.escape(kw), re.IGNORECASE)
+            # Count occurrences
+            matches = len(pattern.findall(formatted_text))
+            found_keyword_counts[kw] += matches
+            
+            # Apply HTML bold and color highlighting
+            formatted_text = pattern.sub(
+                lambda m: f'<font color="yellow"><b>{m.group(0)}</b></font>', 
+                formatted_text
+            )
+
+        caption_block = f"{i}\n{start_time} --> {end_time}\n{formatted_text}\n"
+        highlighted_captions.append(caption_block)
+
+    return "\n".join(highlighted_captions), found_keyword_counts
+
+# --- USER INPUT SECTION ---
+media_file = "sample_video.mp4"
+
+# Accept input from CLI or user prompt
+user_input = input("Enter keywords to highlight (separated by commas): ")
+user_keyword_list = user_input.split(",")
+
+# Run process
+srt_output, matches_summary = highlight_user_keywords_in_captions(media_file, user_keyword_list)
+
+print("\n--- MATCH SUMMARY ---")
+for kw, count in matches_summary.items():
+    print(f"- '{kw}': found {count} time(s)")
+
+print("\n--- GENERATED CAPTIONS (PREVIEW) ---")
+print(srt_output[:600])

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyScribe – Video to Study Notes | AI-Powered Learning</title>
+    <meta name="description" content="Transform any YouTube video or uploaded lecture into comprehensive study notes, chapter summaries, key takeaways, and an interactive transcript with timestamp navigation.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-background">
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+        <div class="glow-orb orb-3"></div>
+    </div>
+
+    <div class="app-container">
+
+        <!-- ── Header ─────────────────────────────────────────────────────── -->
+        <header class="app-header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-book-open-reader"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>StudyScribe <span class="badge">AI Study Portal</span></h1>
+                    <p>Transform any video into structured study notes, summaries &amp; interactive captions</p>
+                </div>
+            </div>
+            <div class="header-presets">
+                <span class="preset-label">Try samples:</span>
+                <button class="btn-preset" id="presetNeuralNets" data-url="https://www.youtube.com/watch?v=aircAruvnKk">
+                    <i class="fa-brands fa-youtube"></i> Neural Nets
+                </button>
+                <button class="btn-preset" id="presetAITalk" data-url="https://www.youtube.com/watch?v=k2P_rhEb6Lw">
+                    <i class="fa-brands fa-youtube"></i> AI Tech Talk
+                </button>
+            </div>
+        </header>
+
+        <!-- ── Input Card ──────────────────────────────────────────────────── -->
+        <section class="search-card glass-panel">
+            <div class="input-tabs">
+                <button class="tab-btn active" id="tabYoutube">
+                    <i class="fa-brands fa-youtube"></i> YouTube Video Link
+                </button>
+                <button class="tab-btn" id="tabUpload">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload Audio / Video
+                </button>
+            </div>
+
+            <!-- YouTube Tab -->
+            <div id="youtubeTabContent" class="tab-content">
+                <div class="input-row">
+                    <div class="input-field-wrapper">
+                        <i class="fa-brands fa-youtube input-icon"></i>
+                        <input type="text" id="youtubeUrlInput"
+                            placeholder="Paste YouTube video link or ID (e.g. https://www.youtube.com/watch?v=...)"
+                            autocomplete="off">
+                    </div>
+                    <button id="scrapeBtn" class="btn-primary">
+                        <i class="fa-solid fa-graduation-cap"></i> Generate Study Notes
+                    </button>
+                </div>
+            </div>
+
+            <!-- Upload Tab -->
+            <div id="uploadTabContent" class="tab-content hidden">
+                <div class="dropzone" id="dropzone">
+                    <i class="fa-solid fa-file-audio dropzone-icon"></i>
+                    <h3>Drag &amp; Drop your Audio or Video file here</h3>
+                    <p class="dropzone-sub">Supports MP4, MP3, WAV, WEBM, M4A, MOV (up to 100&nbsp;MB)</p>
+                    <input type="file" id="fileInput" accept="audio/*,video/*" class="hidden">
+                    <button class="btn-secondary" onclick="document.getElementById('fileInput').click()">
+                        <i class="fa-solid fa-folder-open"></i> Browse Files
+                    </button>
+                    <div id="selectedFileName" class="selected-file-name hidden"></div>
+                </div>
+                <div class="input-row" style="margin-top:14px">
+                    <button id="uploadProcessBtn" class="btn-primary full-width" disabled>
+                        <i class="fa-solid fa-graduation-cap"></i> Transcribe &amp; Generate Study Notes
+                    </button>
+                </div>
+            </div>
+
+            <!-- Custom Keywords -->
+            <div class="keywords-input-row">
+                <label for="customKeywordsInput">
+                    <i class="fa-solid fa-tags"></i> Focus Keywords (optional):
+                </label>
+                <div class="tags-input-container">
+                    <div class="tags-list" id="tagsList"></div>
+                    <input type="text" id="customKeywordsInput"
+                        placeholder="Type a topic keyword and press Enter (e.g. backpropagation, gradient)...">
+                </div>
+                <div class="helper-text">Keywords are highlighted and tracked across the transcript with numbered occurrences.</div>
+            </div>
+        </section>
+
+        <!-- ── Loading Panel ───────────────────────────────────────────────── -->
+        <div id="loadingOverlay" class="loading-panel glass-panel hidden">
+            <div class="loading-inner">
+                <div class="spinner"></div>
+                <div class="loading-steps">
+                    <div class="load-step" id="step1"><i class="fa-solid fa-satellite-dish"></i> <span>Fetching transcript...</span></div>
+                    <div class="load-step" id="step2"><i class="fa-solid fa-magnifying-glass"></i> <span>Analyzing keywords...</span></div>
+                    <div class="load-step" id="step3"><i class="fa-solid fa-layer-group"></i> <span>Generating chapter summaries...</span></div>
+                    <div class="load-step" id="step4"><i class="fa-solid fa-pen-nib"></i> <span>Building detailed study notes...</span></div>
+                </div>
+                <h3 id="loadingStatusText">Preparing your study materials...</h3>
+            </div>
+        </div>
+
+        <!-- ── Error Panel ─────────────────────────────────────────────────── -->
+        <div id="errorBox" class="error-panel glass-panel hidden">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span id="errorMessage">An error occurred while processing media.</span>
+            <button class="btn-close-error" onclick="document.getElementById('errorBox').classList.add('hidden')">&times;</button>
+        </div>
+
+        <!-- ── Main Dashboard ─────────────────────────────────────────────── -->
+        <main id="dashboard" class="dashboard-grid hidden">
+
+            <!-- ── Left Column ─────────────────────────────────────────── -->
+            <div class="col-left">
+
+                <!-- Video Player Card -->
+                <div class="card glass-panel player-card">
+                    <!-- YouTube player -->
+                    <div class="player-wrapper" id="youtubePlayerWrapper">
+                        <div id="player"></div>
+                    </div>
+                    <!-- Local file player -->
+                    <div class="player-wrapper hidden" id="localMediaWrapper">
+                        <video id="localVideoPlayer" controls style="width:100%;height:100%;object-fit:contain;"></video>
+                    </div>
+
+                    <!-- Live caption overlay -->
+                    <div class="caption-box" id="captionBox">
+                        <div class="caption-label"><i class="fa-solid fa-closed-captioning"></i> Live Caption</div>
+                        <div class="caption-text" id="captionText">Captions will appear here during playback...</div>
+                    </div>
+
+                    <!-- Video meta -->
+                    <div class="video-meta" id="videoMeta">
+                        <h2 id="videoTitle">Video Title</h2>
+                        <div class="meta-pills">
+                            <span class="meta-pill"><i class="fa-solid fa-user-circle"></i> <span id="videoAuthor">Channel</span></span>
+                            <span class="meta-pill"><i class="fa-solid fa-clock"></i> <span id="videoDuration">00:00</span></span>
+                            <span class="meta-pill"><i class="fa-solid fa-list-ol"></i> <span id="videoSegments">0</span> Segments</span>
+                            <span class="meta-pill"><i class="fa-solid fa-font"></i> <span id="videoWordCount">0</span> Words</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chapter Navigator Card -->
+                <div class="card glass-panel chapter-nav-card hidden" id="chapterNavCard">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-list-check"></i> Chapter Navigator</h3>
+                        <span class="subtext" id="chapterNavCount">0 chapters</span>
+                    </div>
+                    <div id="chapterNavList" class="chapter-nav-list"></div>
+                </div>
+
+            </div><!-- /col-left -->
+
+            <!-- ── Right Column ────────────────────────────────────────── -->
+            <div class="col-right">
+
+                <!-- Study Tab Bar -->
+                <div class="study-tab-bar">
+                    <button class="study-tab active" id="tabSummary">
+                        <i class="fa-solid fa-bolt-lightning"></i> Quick Summary
+                    </button>
+                    <button class="study-tab" id="tabNotes">
+                        <i class="fa-solid fa-book-open"></i> Detailed Notes
+                    </button>
+                    <button class="study-tab" id="tabTranscript">
+                        <i class="fa-solid fa-file-lines"></i> Transcript
+                    </button>
+                    <button class="study-tab" id="tabKeywords">
+                        <i class="fa-solid fa-tags"></i> Keywords
+                    </button>
+                </div>
+
+                <!-- ── Tab Panel: Quick Summary ────────────────────────── -->
+                <div class="study-panel card glass-panel" id="panelSummary">
+                    <!-- Generating indicator -->
+                    <div class="summary-generating hidden" id="summaryGenerating">
+                        <div class="mini-spinner"></div>
+                        <span>Generating study notes...</span>
+                    </div>
+
+                    <!-- TL;DR Hero -->
+                    <div class="summary-section" id="summaryContent">
+                        <div class="summary-hero" id="summaryHero">
+                            <div class="summary-hero-label"><i class="fa-solid fa-bolt-lightning"></i> TL;DR</div>
+                            <p id="summaryTldr" class="summary-tldr-text">Your summary will appear here after processing...</p>
+                        </div>
+
+                        <!-- Key Takeaways -->
+                        <div class="summary-block">
+                            <h4 class="summary-block-title"><i class="fa-solid fa-check-circle"></i> Key Takeaways</h4>
+                            <ul class="takeaway-list" id="takeawayList">
+                                <li class="takeaway-placeholder">Takeaways will appear after analysis...</li>
+                            </ul>
+                        </div>
+
+                        <!-- Chapter milestones -->
+                        <div class="summary-block">
+                            <h4 class="summary-block-title"><i class="fa-solid fa-timeline"></i> Chapter Overview</h4>
+                            <div class="milestone-list" id="milestoneList">
+                                <div class="milestone-placeholder">Chapters will appear after analysis...</div>
+                            </div>
+                        </div>
+
+                        <!-- Export summary -->
+                        <div class="panel-actions">
+                            <button class="btn-sm" id="btnExportSummaryMd">
+                                <i class="fa-solid fa-download"></i> Download Notes (.md)
+                            </button>
+                            <button class="btn-sm" id="btnCopySummary">
+                                <i class="fa-solid fa-copy"></i> Copy TL;DR
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Tab Panel: Detailed Notes ────────────────────────── -->
+                <div class="study-panel card glass-panel hidden" id="panelNotes">
+                    <div class="panel-toolbar flex-between">
+                        <h3 class="panel-title"><i class="fa-solid fa-book-open"></i> Detailed Study Notes</h3>
+                        <div class="panel-actions">
+                            <button class="btn-sm" id="btnExportNotesMd">
+                                <i class="fa-solid fa-download"></i> Download .md
+                            </button>
+                            <button class="btn-sm" id="btnCopyNotes">
+                                <i class="fa-solid fa-copy"></i> Copy All
+                            </button>
+                        </div>
+                    </div>
+                    <div class="notes-article" id="notesArticle">
+                        <div class="notes-placeholder">
+                            <i class="fa-solid fa-pen-nib"></i>
+                            <p>Detailed chapter-by-chapter notes will appear here after processing.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Tab Panel: Transcript ────────────────────────────── -->
+                <div class="study-panel card glass-panel hidden" id="panelTranscript">
+                    <div class="panel-toolbar flex-between">
+                        <h3 class="panel-title"><i class="fa-solid fa-file-lines"></i> Interactive Transcript</h3>
+                        <div class="panel-actions">
+                            <button id="btnExportTxt" class="btn-sm"><i class="fa-solid fa-download"></i> TXT</button>
+                            <button id="btnExportJson" class="btn-sm"><i class="fa-solid fa-code"></i> JSON</button>
+                            <button id="btnExportCsv" class="btn-sm"><i class="fa-solid fa-table"></i> CSV</button>
+                        </div>
+                    </div>
+                    <div class="transcript-search-bar">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="transcriptSearch" placeholder="Search transcript...">
+                        <span id="searchMatchCount" class="search-count hidden">0 matches</span>
+                    </div>
+                    <div class="transcript-scroll-area" id="transcriptContainer"></div>
+                </div>
+
+                <!-- ── Tab Panel: Keywords ──────────────────────────────── -->
+                <div class="study-panel card glass-panel hidden" id="panelKeywords">
+                    <!-- Keyword Chips -->
+                    <div class="keywords-bar-inner">
+                        <div class="card-header flex-between">
+                            <h3><i class="fa-solid fa-highlighter"></i> Highlighted Keywords</h3>
+                            <span class="badge-accent" id="activeKwCount">0 Keywords</span>
+                        </div>
+                        <div class="keywords-chip-container" id="keywordsChipContainer"></div>
+                    </div>
+
+                    <!-- Frequency Table -->
+                    <div class="stats-table-wrapper">
+                        <h4 class="section-sub-title"><i class="fa-solid fa-chart-simple"></i> Frequency Table</h4>
+                        <table class="stats-table" id="statsTable">
+                            <thead>
+                                <tr>
+                                    <th>Keyword</th><th>Type</th><th>Count</th><th>Density</th><th>First Hit</th>
+                                </tr>
+                            </thead>
+                            <tbody id="statsTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Keyword Timeline -->
+                    <div class="occurrences-section">
+                        <div class="card-header flex-between" style="margin-bottom:12px">
+                            <h4 class="section-sub-title" style="margin:0"><i class="fa-solid fa-timeline"></i> Keyword Timeline</h4>
+                            <div class="view-mode-toggle">
+                                <button class="btn-toggle active" id="btnViewSequential">
+                                    <i class="fa-solid fa-arrow-down-short-wide"></i> Stream
+                                </button>
+                                <button class="btn-toggle" id="btnViewGrouped">
+                                    <i class="fa-solid fa-layer-group"></i> Grouped
+                                </button>
+                            </div>
+                        </div>
+                        <div class="occurrences-list-container" id="sequentialTimelineContainer"></div>
+                        <div class="occurrences-list-container hidden" id="occurrencesListContainer"></div>
+                    </div>
+                </div>
+
+            </div><!-- /col-right -->
+
+        </main><!-- /dashboard -->
+
+    </div><!-- /app-container -->
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="/static/script.js"></script>
+</body>
+</html>
